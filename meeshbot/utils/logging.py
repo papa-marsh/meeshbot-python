@@ -47,5 +47,7 @@ def configure_logging() -> None:
     root_logger.addHandler(handler)
     root_logger.setLevel(logging.INFO)
 
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
+
 
 log: BoundLogger = get_logger()
