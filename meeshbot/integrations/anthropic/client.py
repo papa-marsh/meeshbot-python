@@ -28,12 +28,28 @@ class AnthropicClient:
         self._client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         self.model = model
 
+    @property
+    def websearch_tool(self) -> types.WebSearchTool20260209Param:
+        return {
+            "type": "web_search_20260209",
+            "name": "web_search",
+            "max_uses": 10,
+        }
+
+    @property
+    def webfetch_tool(self) -> types.WebFetchTool20260209Param:
+        return {
+            "type": "web_fetch_20260209",
+            "name": "web_fetch",
+            "max_uses": 5,
+        }
+
     async def generate_response(
         self,
         prompt: str,
         context: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        websearch_enabled: bool = False,
+        allow_webfetch: bool = False,
     ) -> str:
         """Generate a text response from Claude.
 
@@ -46,18 +62,13 @@ class AnthropicClient:
             The text content of Claude's response.
         """
         messages: list[types.MessageParam] = [{"role": "user", "content": prompt}]
-        websearch_tool: types.WebSearchTool20260209Param = {
-            "type": "web_search_20260209",
-            "name": "web_search",
-            "max_uses": 10,
-        }
 
         response = await self._client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             system=context or "",
             messages=messages,
-            tools=[websearch_tool] if websearch_enabled else [],
+            tools=[self.websearch_tool, self.webfetch_tool] if allow_webfetch else [],
         )
 
         return "".join(block.text for block in response.content if block.type == "text")

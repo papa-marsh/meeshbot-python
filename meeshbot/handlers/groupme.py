@@ -23,7 +23,7 @@ async def handle_groupme_webhook(webhook: GroupMeWebhookPayload) -> None:
         response = await AnthropicClient().generate_response(
             webhook.text,
             context=context,
-            websearch_enabled=True,
+            allow_webfetch=True,
         )
 
         await GroupMeClient().post_message(
