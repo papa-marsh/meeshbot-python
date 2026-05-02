@@ -1,4 +1,6 @@
 from meeshbot.commands.registry import get_command_func
+from meeshbot.integrations.anthropic.client import AnthropicClient
+from meeshbot.integrations.groupme.client import GroupMeClient
 from meeshbot.integrations.groupme.queries import sync_message_to_db
 from meeshbot.integrations.groupme.types import GroupMeWebhookPayload
 
@@ -15,3 +17,16 @@ async def handle_groupme_webhook(webhook: GroupMeWebhookPayload) -> None:
         func = get_command_func(command)
 
         await func(webhook)
+
+    if "meeshbot" in webhook.text.lower():
+        context = "You are Meeshbot"
+        response = await AnthropicClient().generate_response(
+            webhook.text,
+            context=context,
+            websearch_enabled=True,
+        )
+
+        await GroupMeClient().post_message(
+            group_id=webhook.group_id,
+            text=response,
+        )

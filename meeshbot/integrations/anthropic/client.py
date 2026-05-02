@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-import anthropic
+from anthropic import AsyncAnthropic, types
 from pydantic import BaseModel
 
 from meeshbot.config import ANTHROPIC_API_KEY, TIMEZONE
@@ -13,8 +13,8 @@ class ClaudeModel(StrEnum):
     HAIKU = "claude-haiku-4-5"
 
 
-DEFAULT_MODEL = ClaudeModel.HAIKU
-DEFAULT_MAX_TOKENS = 1024
+DEFAULT_MODEL = ClaudeModel.SONNET
+DEFAULT_MAX_TOKENS = 2048
 
 ERROR_OUTPUT = "FAILED"
 
@@ -25,7 +25,7 @@ class _ResolvedTimestamp(BaseModel):
 
 class AnthropicClient:
     def __init__(self, model: ClaudeModel = DEFAULT_MODEL) -> None:
-        self._client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        self._client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         self.model = model
 
     async def generate_response(
@@ -33,6 +33,7 @@ class AnthropicClient:
         prompt: str,
         context: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        websearch_enabled: bool = False,
     ) -> str:
         """Generate a text response from Claude.
 
@@ -44,27 +45,22 @@ class AnthropicClient:
         Returns:
             The text content of Claude's response.
         """
-        messages: list[anthropic.types.MessageParam] = [{"role": "user", "content": prompt}]
+        messages: list[types.MessageParam] = [{"role": "user", "content": prompt}]
+        websearch_tool: types.WebSearchTool20260209Param = {
+            "type": "web_search_20260209",
+            "name": "web_search",
+            "max_uses": 10,
+        }
 
-        if context is not None:
-            response = await self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=context,
-                messages=messages,
-            )
-        else:
-            response = await self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                messages=messages,
-            )
+        response = await self._client.messages.create(
+            model=self.model,
+            max_tokens=max_tokens,
+            system=context or "",
+            messages=messages,
+            tools=[websearch_tool] if websearch_enabled else [],
+        )
 
-        block = response.content[0]
-        if block.type != "text":
-            raise ValueError(f"Unexpected response block type: {block.type}")
-
-        return str(block.text)
+        return "".join(block.text for block in response.content if block.type == "text")
 
     async def resolve_timestamp(self, description: str) -> str:
         """Resolve a natural-language date/time description to an ISO 8601 string.
