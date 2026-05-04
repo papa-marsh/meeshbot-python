@@ -66,6 +66,9 @@ ignore = [
     "E501",   # Line length
     "S101",   # Assert statements
 ]
+"meeshbot/integrations/anthropic/context.py" = [
+    "E501", # Line length
+]
 
 [tool.mypy]
 python_version = "3.14"

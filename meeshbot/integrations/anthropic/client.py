@@ -23,6 +23,10 @@ class _ResolvedTimestamp(BaseModel):
     iso: str
 
 
+class _ResponseLikelihood(BaseModel):
+    score: int
+
+
 class AnthropicClient:
     def __init__(self, model: ClaudeModel = DEFAULT_MODEL) -> None:
         self._client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
@@ -44,25 +48,27 @@ class AnthropicClient:
             "max_uses": 5,
         }
 
+    @classmethod
+    def build_message_entry(
+        cls,
+        sender_name: str,
+        timestamp: datetime,
+        message: str,
+    ) -> types.MessageParam:
+        timestamp_string = timestamp.strftime("%b %-d %Y, %-I:%M%p")
+
+        return types.MessageParam(
+            role="assistant" if sender_name == "MeeshBot" else "user",
+            content=f"{sender_name} ({timestamp_string}): {message}",
+        )
+
     async def generate_response(
         self,
-        prompt: str,
+        messages: list[types.MessageParam],
         context: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        allow_webfetch: bool = False,
+        allow_webfetch: bool = True,
     ) -> str:
-        """Generate a text response from Claude.
-
-        Args:
-            prompt: The user message.
-            context: Optional system-level context (e.g. "You are a helpful assistant...").
-            max_tokens: Maximum tokens in the response.
-
-        Returns:
-            The text content of Claude's response.
-        """
-        messages: list[types.MessageParam] = [{"role": "user", "content": prompt}]
-
         response = await self._client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
@@ -74,16 +80,13 @@ class AnthropicClient:
         return "".join(block.text for block in response.content if block.type == "text")
 
     async def resolve_timestamp(self, description: str) -> str:
-        """Resolve a natural-language date/time description to an ISO 8601 string.
+        """
+        Resolve a natural-language date/time description to an ISO 8601 string.
 
         Handles both relative expressions ("next Wednesday at 7", "tomorrow afternoon")
         and absolute expressions ("March 23", "9/24/26").
 
-        Args:
-            description: A natural-language date/time string.
-
-        Returns:
-            An ISO 8601 datetime string (e.g. "2026-04-23T19:00:00").
+        Returns an ISO 8601 datetime string (e.g. "2026-04-23T19:00:00").
         """
         now = datetime.now(tz=TIMEZONE)
         now_str = now.strftime("%A, %B %d, %Y %I:%M %p %Z")
@@ -112,3 +115,24 @@ class AnthropicClient:
             raise ValueError(f"Failed to resolve timestamp from: {description!r}")
 
         return response.parsed_output.iso
+
+    async def score_response_likelihood(self, history_text: str, context: str) -> int:
+        """
+        Score how likely it is that MeeshBot should respond, on a 0-100 scale.
+
+        Chat history is passed as a single user-role text block (it is evidence
+        to classify, not a conversation to participate in). The system prompt
+        defines the scoring task and anchors.
+        """
+        response = await self._client.messages.parse(
+            model=self.model,
+            max_tokens=16,
+            system=context,
+            messages=[{"role": "user", "content": history_text}],
+            output_format=_ResponseLikelihood,
+        )
+
+        if response.parsed_output is None:
+            raise ValueError("Failed to score response likelihood")
+
+        return response.parsed_output.score

@@ -1,13 +1,14 @@
 """Database utilities for GroupMe integration."""
 
-from datetime import UTC, datetime
-from typing import TypedDict
+from datetime import UTC, datetime, timedelta
+from typing import Any, TypedDict
 
 from oxyde.queries.aggregates import Count
 
 from meeshbot.integrations.groupme.secrets import ADMIN_USER_IDS, BOTS_BY_GROUP, PUBLIC_GROUPS
 from meeshbot.integrations.groupme.types import GroupMeWebhookPayload, Message
 from meeshbot.models import GroupMeGroup, GroupMeMessage, GroupMeUser
+from meeshbot.utils.dates import local_now
 
 
 def get_bot_id(group_id: str, raise_if_missing: bool = False) -> str | None:
@@ -94,6 +95,22 @@ async def upsert_message(group_id: str, message: Message) -> None:
             attachments=attachments,
             timestamp=timestamp,
         )
+
+
+async def get_message_history(
+    max_days: int,
+    max_count: int,
+    group_id: str | None = None,
+) -> list[GroupMeMessage]:
+    since_timestamp = local_now() - timedelta(days=max_days)
+
+    filters: dict[str, Any] = {"timestamp__gte": since_timestamp}
+    if group_id is not None:
+        filters["group_id"] = group_id
+
+    message_qs = GroupMeMessage.objects.filter(**filters).limit(max_count).order_by("-timestamp")
+
+    return await message_qs.all()
 
 
 class _MessageCountRow(TypedDict):
