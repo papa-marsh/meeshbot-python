@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 
+from meeshbot.config import TIMEZONE
+from meeshbot.scheduled.message_sync import sync_recent_messages
 from meeshbot.scheduled.reminders import send_due_reminders
 from meeshbot.utils.logging import log
 
@@ -21,8 +23,22 @@ async def _tick() -> None:
 
 @asynccontextmanager
 async def scheduler_lifespan() -> AsyncIterator[None]:
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(_tick, trigger="cron", minute="*", id="minute_tick")
+    scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+
+    scheduler.add_job(
+        _tick,
+        trigger="cron",
+        minute="*",
+        id="minute_tick",
+    )
+    scheduler.add_job(
+        sync_recent_messages,
+        trigger="cron",
+        hour=4,
+        minute=0,
+        id="nightly_message_sync",
+    )
+
     scheduler.start()
     log.info("Scheduler started")
     try:
