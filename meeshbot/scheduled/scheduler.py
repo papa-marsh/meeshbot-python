@@ -2,19 +2,19 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 
 from meeshbot.config import TIMEZONE
 from meeshbot.scheduled.message_sync import sync_recent_messages
 from meeshbot.scheduled.reminders import send_due_reminders
+from meeshbot.utils.dates import local_now
 from meeshbot.utils.logging import log
 
 
 async def _tick() -> None:
     """Run on every scheduled tick (once per minute)."""
-    now = datetime.now(tz=UTC)
+    now = local_now()
     if now.minute == 0:
         log.info("Scheduler heartbeat", hour=now.hour)
 
