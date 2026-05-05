@@ -1,5 +1,3 @@
-"""Nightly message sync — backfills the last 7 days of messages across all groups."""
-
 from datetime import UTC, datetime, timedelta
 
 from meeshbot.integrations.groupme.client import GroupMeClient
