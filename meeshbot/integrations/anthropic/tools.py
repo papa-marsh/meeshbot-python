@@ -12,7 +12,6 @@ WEBSEARCH_TOOL: types.WebSearchTool20260209Param = {
     "max_uses": 10,
 }
 
-
 WEBFETCH_TOOL: types.WebFetchTool20260209Param = {
     "type": "web_fetch_20260209",
     "name": "web_fetch",
