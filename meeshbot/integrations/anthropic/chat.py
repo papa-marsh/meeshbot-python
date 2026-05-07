@@ -6,7 +6,7 @@ from meeshbot.integrations.anthropic.context import (
     SHOULD_RESPOND_CONTEXT,
 )
 from meeshbot.integrations.groupme.client import GroupMeClient
-from meeshbot.integrations.groupme.queries import get_message_history
+from meeshbot.integrations.groupme.queries import get_message_history, is_public_group
 from meeshbot.integrations.groupme.types import GroupMeWebhookPayload
 from meeshbot.models.user import GroupMeUser
 from meeshbot.utils.logging import log
@@ -89,7 +89,13 @@ async def send_ai_response(webhook: GroupMeWebhookPayload) -> None:
     messages = await build_message_history(webhook.group_id)
     context = SEND_AI_RESPONSE_CONTEXT
 
-    response = await AnthropicClient().generate_response(messages=messages, context=context)
+    allow_db_query = not is_public_group(webhook.group_id)
+    response = await AnthropicClient().generate_response(
+        messages=messages,
+        context=context,
+        allow_webfetch=True,
+        allow_db_query=allow_db_query,
+    )
 
     await GroupMeClient().post_message(
         group_id=webhook.group_id,

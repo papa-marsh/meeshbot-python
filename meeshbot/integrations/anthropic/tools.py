@@ -29,7 +29,7 @@ DB_QUERY_TOOL: types.ToolParam = {
         "or otherwise mutate data will be rejected. "
         "Results are returned as a JSON array of row objects. "
         "Limit each query to a reasonable number of rows (e.g. LIMIT 200) unless a larger result "
-        "is necessary. "
+        "is necessary."
         "\n\n"
         "## Schema\n"
         "\n"
