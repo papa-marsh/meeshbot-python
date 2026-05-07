@@ -11,6 +11,7 @@ from meeshbot.integrations.anthropic.tools import (
     WEBSEARCH_TOOL,
     execute_db_query,
 )
+from meeshbot.utils.logging import log
 
 
 class ClaudeModel(StrEnum):
@@ -77,8 +78,15 @@ class AnthropicClient:
                 tools=tools,
             )
 
+            text_content = "".join(block.text for block in response.content if block.type == "text")
+            log.info(
+                "AI response received",
+                stop_reason=response.stop_reason,
+                text=text_content or None,
+            )
+
             if response.stop_reason != "tool_use":
-                return "".join(block.text for block in response.content if block.type == "text")
+                return text_content
 
             conversation.append({"role": "assistant", "content": response.content})
             tool_results: list[types.ToolResultBlockParam] = []
@@ -107,7 +115,7 @@ class AnthropicClient:
                     )
 
             if not tool_results:
-                return "".join(block.text for block in response.content if block.type == "text")
+                return text_content
 
             conversation.append({"role": "user", "content": tool_results})
 

@@ -4,6 +4,7 @@ import asyncpg
 from anthropic import types
 
 from meeshbot.config import AI_DATABASE_URL
+from meeshbot.utils.logging import log
 
 WEBSEARCH_TOOL: types.WebSearchTool20260209Param = {
     "type": "web_search_20260209",
@@ -125,6 +126,8 @@ async def execute_db_query(sql: str) -> str:
     """
     if not _is_safe_query(sql):
         return f"{ERROR_PREFIX} query contains disallowed keywords. Only SELECTs are permitted."
+
+    log.info("AI executing database query", sql=sql)
 
     conn: asyncpg.Connection = await asyncpg.connect(AI_DATABASE_URL)
     try:
