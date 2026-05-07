@@ -46,7 +46,7 @@ class AnthropicClient:
         timestamp: datetime,
         message: str,
     ) -> types.MessageParam:
-        timestamp_string = timestamp.strftime("%b %-d %Y, %-I:%M%p")
+        timestamp_string = timestamp.astimezone(TIMEZONE).strftime("%b %-d %Y, %-I:%M%p")
 
         return types.MessageParam(
             role="assistant" if sender_name == "MeeshBot" else "user",
