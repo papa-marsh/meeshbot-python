@@ -5,6 +5,12 @@ from anthropic import AsyncAnthropic, types
 from pydantic import BaseModel
 
 from meeshbot.config import ANTHROPIC_API_KEY, TIMEZONE
+from meeshbot.integrations.anthropic.tools import (
+    DB_QUERY_TOOL,
+    WEBFETCH_TOOL,
+    WEBSEARCH_TOOL,
+    execute_db_query,
+)
 
 
 class ClaudeModel(StrEnum):
@@ -32,22 +38,6 @@ class AnthropicClient:
         self._client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         self.model = model
 
-    @property
-    def websearch_tool(self) -> types.WebSearchTool20260209Param:
-        return {
-            "type": "web_search_20260209",
-            "name": "web_search",
-            "max_uses": 10,
-        }
-
-    @property
-    def webfetch_tool(self) -> types.WebFetchTool20260209Param:
-        return {
-            "type": "web_fetch_20260209",
-            "name": "web_fetch",
-            "max_uses": 5,
-        }
-
     @classmethod
     def build_message_entry(
         cls,
@@ -68,16 +58,58 @@ class AnthropicClient:
         context: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         allow_webfetch: bool = True,
+        allow_db_query: bool = True,
     ) -> str:
-        response = await self._client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=context or "",
-            messages=messages,
-            tools=[self.websearch_tool, self.webfetch_tool] if allow_webfetch else [],
-        )
+        conversation = list(messages)
+        tools: list[types.ToolUnionParam] = []
 
-        return "".join(block.text for block in response.content if block.type == "text")
+        if allow_webfetch:
+            tools.extend([WEBSEARCH_TOOL, WEBFETCH_TOOL])
+        if allow_db_query:
+            tools.append(DB_QUERY_TOOL)
+
+        while True:
+            response = await self._client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=context or "",
+                messages=conversation,
+                tools=tools,
+            )
+
+            if response.stop_reason != "tool_use":
+                return "".join(block.text for block in response.content if block.type == "text")
+
+            conversation.append({"role": "assistant", "content": response.content})
+            tool_results: list[types.ToolResultBlockParam] = []
+
+            for block in response.content:
+                if block.type != "tool_use":
+                    continue
+
+                if block.name == DB_QUERY_TOOL["name"]:
+                    raw_input = block.input
+                    sql = str(raw_input.get("sql", "")) if isinstance(raw_input, dict) else ""
+                    try:
+                        result_content = await execute_db_query(sql)
+                        is_error = result_content.startswith("Error:")
+                    except Exception as exc:
+                        result_content = f"Error: {exc}"
+                        is_error = True
+
+                    tool_results.append(
+                        types.ToolResultBlockParam(
+                            type="tool_result",
+                            tool_use_id=block.id,
+                            content=result_content,
+                            is_error=is_error,
+                        )
+                    )
+
+            if not tool_results:
+                return "".join(block.text for block in response.content if block.type == "text")
+
+            conversation.append({"role": "user", "content": tool_results})
 
     async def resolve_timestamp(self, description: str) -> str:
         """
