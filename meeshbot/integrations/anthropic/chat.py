@@ -91,7 +91,7 @@ async def send_ai_response(webhook: GroupMeWebhookPayload) -> None:
 
     messages.append(
         MessageParam(
-            role="assistant",
+            role="user",
             content=(
                 "<-- Internal AI Note - not visible to user -->\n"
                 f"<-- The current group ID is: {webhook.group_id} -->"
