@@ -1,4 +1,4 @@
-from anthropic import types
+from anthropic.types import MessageParam
 
 from meeshbot.integrations.anthropic.client import AnthropicClient, ClaudeModel
 from meeshbot.integrations.anthropic.context import (
@@ -23,12 +23,12 @@ async def build_message_history(
     group_id: str,
     max_days: int = CHAT_HISTORY_MAX_DAYS,
     max_count: int = CHAT_HISTORY_MAX_COUNT,
-) -> list[types.MessageParam]:
+) -> list[MessageParam]:
     """
     Fetches message history for the specified group and
     returns it in the format required by Anthropic's API
     """
-    context_messages: list[types.MessageParam] = []
+    context_messages: list[MessageParam] = []
     message_history_desc = await get_message_history(max_days, max_count, group_id=group_id)
 
     sender_name_map = {}
@@ -40,7 +40,7 @@ async def build_message_history(
             user = await GroupMeUser.objects.get(id=user_id)
             sender_name_map[user_id] = user.name
 
-        message_entry = AnthropicClient.build_message_entry(
+        message_entry = AnthropicClient.build_message_history_entry(
             sender_name=sender_name_map[user_id],
             timestamp=message.timestamp,
             message=message.text or "",
@@ -86,8 +86,18 @@ async def should_respond(group_id: str, threshold: int = SHOULD_RESPOND_THRESHOL
 
 
 async def send_ai_response(webhook: GroupMeWebhookPayload) -> None:
-    messages = await build_message_history(webhook.group_id)
     context = SEND_AI_RESPONSE_CONTEXT
+    messages = await build_message_history(webhook.group_id)
+
+    messages.append(
+        MessageParam(
+            role="assistant",
+            content=(
+                "<-- Internal AI Note - not visible to user -->\n"
+                f"<-- The current group ID is: {webhook.group_id} -->"
+            ),
+        )
+    )
 
     allow_db_query = not is_public_group(webhook.group_id)
     response = await AnthropicClient().generate_response(

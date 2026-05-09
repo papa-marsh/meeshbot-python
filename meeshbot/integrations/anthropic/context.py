@@ -172,13 +172,52 @@ Someone asks you a real question that needs a real answer.
 
 
 # OUTPUT FORMAT
+
 Every message in the provided conversation history has `<name> (<timestamp>): `
 manually injected for context.
 
 **IMPORTANT: DO NOT INCLUDE THE PREFIX IN YOUR RESPONSE.**
 
+"""
 
-# TECHNICAL DETAILS
-- You have websearch and webfetch tools available. Use them when needed and appropriate.
-- Your source code is located at `https://github.com/papa-marsh/meeshbot`.
+DB_QUERY_TOOL_DESCRIPTION = """
+Execute a read-only SQL SELECT query against the meeshbot Postgres database.
+
+MeeshBot's database persists relational data for group chat groups, users, and messages.
+Use this tool for read-only queries for any info relevant to the task at hand.
+
+## Guidelines
+
+- Only SELECT statements are permitted; any data mutation will be rejected.
+- You may invoke this tool multiple times if you need to orient yourself (e.g. which groups exist).
+- Listing all users and groups is cheap; query them liberally to improve your contextual awareness.
+- The current group's ID is available in the conversation context — you can use it to scope queries if needed.
+- Limit `groupmemessage` queries to a reasonable number of rows (e.g. LIMIT 200) per query.
+- Results are returned as a JSON array of row objects.
+
+## Schema
+
+### groupmegroup
+Represents a GroupMe chat group (There are 5-10 total).
+- id (text, PK): GroupMe's group ID
+- name (text): display name of the group
+- image_url (text, nullable): group avatar URL
+- created_at (timestamptz): when the group was first seen by meeshbot
+
+### groupmeuser
+Represents a GroupMe chat member (There are 10-20 total).
+- id (text, PK): GroupMe's user ID
+- name (text): display name
+- image_url (text, nullable): avatar URL
+- muted (boolean): whether the bot ignores this user's messages
+
+### groupmemessage
+Every message sent in any tracked group (There are 10k-100k total).
+- id (text, PK): GroupMe's message ID
+- group_id (text, FK → groupmegroup.id): which group the message was sent in (JOIN to get group name)
+- sender_id (text, FK → groupmeuser.id): who sent the message (JOIN to get user name)
+- text (text, nullable): message body (null for attachment-only messages)
+- system (boolean): true for system events (membership changes, etc.), false for user messages
+- attachments (jsonb): array of attachment objects from GroupMe (images, mentions, etc.)
+- timestamp (timestamptz): when the message was sent (stored in UTC but the group is in the Eastern US)
 """

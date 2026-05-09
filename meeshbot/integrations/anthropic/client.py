@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import StrEnum
 
-from anthropic import AsyncAnthropic, types
+from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam, ToolResultBlockParam, ToolUnionParam
 from pydantic import BaseModel
 
 from meeshbot.config import ANTHROPIC_API_KEY, TIMEZONE
@@ -36,33 +37,33 @@ class _ResponseLikelihood(BaseModel):
 
 class AnthropicClient:
     def __init__(self, model: ClaudeModel = DEFAULT_MODEL) -> None:
-        self._client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        self.client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
         self.model = model
 
     @classmethod
-    def build_message_entry(
+    def build_message_history_entry(
         cls,
         sender_name: str,
         timestamp: datetime,
         message: str,
-    ) -> types.MessageParam:
+    ) -> MessageParam:
         timestamp_string = timestamp.astimezone(TIMEZONE).strftime("%b %-d %Y, %-I:%M%p")
 
-        return types.MessageParam(
+        return MessageParam(
             role="assistant" if sender_name == "MeeshBot" else "user",
             content=f"{sender_name} ({timestamp_string}): {message}",
         )
 
     async def generate_response(
         self,
-        messages: list[types.MessageParam],
+        messages: list[MessageParam],
         context: str | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         allow_webfetch: bool = True,
         allow_db_query: bool = True,
     ) -> str:
         conversation = list(messages)
-        tools: list[types.ToolUnionParam] = []
+        tools: list[ToolUnionParam] = []
 
         if allow_webfetch:
             tools.extend([WEBSEARCH_TOOL, WEBFETCH_TOOL])
@@ -70,7 +71,7 @@ class AnthropicClient:
             tools.append(DB_QUERY_TOOL)
 
         while True:
-            response = await self._client.messages.create(
+            response = await self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
                 system=context or "",
@@ -89,7 +90,7 @@ class AnthropicClient:
                 return text_content
 
             conversation.append({"role": "assistant", "content": response.content})
-            tool_results: list[types.ToolResultBlockParam] = []
+            tool_results: list[ToolResultBlockParam] = []
 
             for block in response.content:
                 if block.type != "tool_use":
@@ -106,7 +107,7 @@ class AnthropicClient:
                         is_error = True
 
                     tool_results.append(
-                        types.ToolResultBlockParam(
+                        ToolResultBlockParam(
                             type="tool_result",
                             tool_use_id=block.id,
                             content=result_content,
@@ -143,7 +144,7 @@ class AnthropicClient:
             f"to a timestamp, output only the text: {ERROR_OUTPUT}"
         )
 
-        response = await self._client.messages.parse(
+        response = await self.client.messages.parse(
             model=self.model,
             max_tokens=64,
             system=system,
@@ -164,7 +165,7 @@ class AnthropicClient:
         to classify, not a conversation to participate in). The system prompt
         defines the scoring task and anchors.
         """
-        response = await self._client.messages.parse(
+        response = await self.client.messages.parse(
             model=self.model,
             max_tokens=16,
             system=context,
