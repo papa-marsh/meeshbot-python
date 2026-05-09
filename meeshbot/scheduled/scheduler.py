@@ -1,5 +1,3 @@
-"""APScheduler configuration and lifespan context manager."""
-
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,13 +10,9 @@ from meeshbot.utils.dates import local_now
 from meeshbot.utils.logging import log
 
 
-async def _tick() -> None:
-    """Run on every scheduled tick (once per minute)."""
+async def scheduler_heartbeat() -> None:
     now = local_now()
-    if now.minute == 0:
-        log.info("Scheduler heartbeat", hour=now.hour)
-
-    await send_due_reminders()
+    log.info("Scheduler heartbeat", hour=now.hour)
 
 
 @asynccontextmanager
@@ -26,17 +20,25 @@ async def scheduler_lifespan() -> AsyncIterator[None]:
     scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 
     scheduler.add_job(
-        _tick,
+        scheduler_heartbeat,
         trigger="cron",
+        hour="*",
+        minute=0,
+        id=scheduler_heartbeat.__name__,
+    )
+    scheduler.add_job(
+        send_due_reminders,
+        trigger="cron",
+        hour="*",
         minute="*",
-        id="minute_tick",
+        id=send_due_reminders.__name__,
     )
     scheduler.add_job(
         sync_recent_messages,
         trigger="cron",
         hour=4,
         minute=0,
-        id="nightly_message_sync",
+        id=sync_recent_messages.__name__,
     )
 
     scheduler.start()
