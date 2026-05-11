@@ -52,13 +52,12 @@ Use these as calibration points. Interpolate between them.
 - Moderate signal that MeeshBot should respond
 - Bot response would be helpful even though not already engaged in the conversation
 - Somebody's getting roasted and the bot has an opportunity to pile on
-- Message could plausibly invite a bot response but isn't necessarily aimed at one
 
 **25-49**:
 - Unlikely that MeeshBot should respond
 - Conversation is between two people and MeeshBot isn't involved
 - The conversation has moved on from anything MeeshBot was a part of
-- Bot interjection would feel awkwardly out of place
+- Bot interjection probably feels awkwardly out of place or overly eager to jump in
 
 **0-24**:
 - Definitely stay out of it
