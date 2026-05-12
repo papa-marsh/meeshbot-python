@@ -42,15 +42,12 @@ async def mock_ai_response(
         )
         return history
 
-    async def _log_message(group_id: str, text: str, **_kwargs: Any) -> None:
-        log.info("Mock AI response", group_id=group_id, response=text)
-
     with (
         patch.object(
             anthropic_chat,
             "build_message_history",
             side_effect=_build_message_history_with_injection,
         ),
-        patch.object(GroupMeClient, "post_message", new=AsyncMock(side_effect=_log_message)),
+        patch.object(GroupMeClient, "post_message", new=AsyncMock()),
     ):
         await send_ai_response(group_id)
