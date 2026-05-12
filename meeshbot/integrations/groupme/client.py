@@ -26,11 +26,7 @@ class GroupMeClient:
                 params=request_params,
                 timeout=10,
             )
-        log.debug(
-            "Received response from GroupMe",
-            status=response.status_code,
-            url=str(response.url).replace(GROUPME_TOKEN, "<token>"),
-        )
+        log.debug("Received GroupMe response", status=response.status_code, url=str(response.url))
 
         response.raise_for_status()
         data = response.json()["response"]
@@ -52,11 +48,7 @@ class GroupMeClient:
                 json=json,
                 timeout=10,
             )
-        log.debug(
-            "Received response from GroupMe",
-            status=response.status_code,
-            url=str(response.url).replace(GROUPME_TOKEN, "<token>"),
-        )
+        log.debug("Received GroupMe response", status=response.status_code, url=str(response.url))
 
         response.raise_for_status()
         if not response.content:
@@ -120,11 +112,7 @@ class GroupMeClient:
             request_params = {"token": self.api_token, **params}
             log.debug("Sending request to GroupMe", method=HTTPMethod.GET, url=url)
             response = await client.get(url, params=request_params, timeout=10)
-        log.debug(
-            "Received response from GroupMe",
-            status=response.status_code,
-            url=str(response.url).replace(self.api_token, "<token>"),
-        )
+        log.debug("Received GroupMe response", status=response.status_code, url=str(response.url))
 
         if response.status_code == 304:
             return []
