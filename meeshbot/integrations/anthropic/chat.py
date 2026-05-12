@@ -1,5 +1,6 @@
 from anthropic.types import MessageParam
 
+from meeshbot.config import TESTING_GROUP_ID
 from meeshbot.integrations.anthropic.client import AnthropicClient, ClaudeModel
 from meeshbot.integrations.anthropic.context import (
     SEND_AI_RESPONSE_CONTEXT,
@@ -7,7 +8,6 @@ from meeshbot.integrations.anthropic.context import (
 )
 from meeshbot.integrations.groupme.client import GroupMeClient
 from meeshbot.integrations.groupme.queries import get_message_history, is_public_group
-from meeshbot.integrations.groupme.types import GroupMeWebhookPayload
 from meeshbot.models.user import GroupMeUser
 from meeshbot.utils.logging import log
 
@@ -85,21 +85,21 @@ async def should_respond(group_id: str, threshold: int = SHOULD_RESPOND_THRESHOL
     return score >= threshold
 
 
-async def send_ai_response(webhook: GroupMeWebhookPayload) -> None:
+async def send_ai_response(group_id: str = TESTING_GROUP_ID) -> None:
     context = SEND_AI_RESPONSE_CONTEXT
-    messages = await build_message_history(webhook.group_id)
+    messages = await build_message_history(group_id)
 
     messages.append(
         MessageParam(
             role="user",
             content=(
                 "<-- Internal AI Note - not visible to user -->\n"
-                f"<-- The current group ID is: {webhook.group_id} -->"
+                f"<-- The current group ID is: {group_id} -->"
             ),
         )
     )
 
-    allow_db_query = not is_public_group(webhook.group_id)
+    allow_db_query = not is_public_group(group_id)
     response = await AnthropicClient().generate_response(
         messages=messages,
         context=context,
@@ -108,6 +108,6 @@ async def send_ai_response(webhook: GroupMeWebhookPayload) -> None:
     )
 
     await GroupMeClient().post_message(
-        group_id=webhook.group_id,
+        group_id=group_id,
         text=response,
     )
