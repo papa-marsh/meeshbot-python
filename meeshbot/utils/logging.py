@@ -7,7 +7,7 @@ from typing import Any
 import structlog
 from structlog.stdlib import BoundLogger, get_logger
 
-from meeshbot.config import GROUPME_WEBHOOK_TOKEN, TIMEZONE
+from meeshbot.config import GROUPME_TOKEN, GROUPME_WEBHOOK_TOKEN, TIMEZONE
 
 
 def _add_timezone_timestamp(
@@ -20,15 +20,20 @@ def _add_timezone_timestamp(
     return event_dict
 
 
+_REDACTED_STRINGS: tuple[str, ...] = (GROUPME_TOKEN, GROUPME_WEBHOOK_TOKEN)
+
+
 def _redact_tokens(
     _logger: Any,
     _method_name: str,
     event_dict: MutableMapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Redact webhook token from log messages (e.g. uvicorn access logs)."""
-    event = event_dict.get("event")
-    if isinstance(event, str):
-        event_dict["event"] = event.replace(GROUPME_WEBHOOK_TOKEN, "<redacted>")
+    """Redact sensitive strings from log messages."""
+    if isinstance(event := event_dict.get("event"), str):
+        for secret in _REDACTED_STRINGS:
+            if secret:
+                event = event.replace(secret, "<redacted>")
+        event_dict["event"] = event
     return event_dict
 
 
@@ -40,7 +45,7 @@ def configure_logging() -> None:
             structlog.processors.add_log_level,
             _add_timezone_timestamp,
             _redact_tokens,
-            structlog.dev.ConsoleRenderer(colors=True),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(min_level=logging.DEBUG),
         context_class=dict,
@@ -53,6 +58,7 @@ def configure_logging() -> None:
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
             processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                 _redact_tokens,
                 structlog.dev.ConsoleRenderer(colors=True),
             ],
