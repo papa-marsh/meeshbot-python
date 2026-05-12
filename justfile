@@ -11,6 +11,9 @@ deploy:
 logs:
     docker compose logs meeshbot
 
+logs-f:
+    docker compose logs -f meeshbot
+
 pull-deploy:
     git checkout main && \
     git pull && \
