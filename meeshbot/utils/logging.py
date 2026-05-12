@@ -28,12 +28,13 @@ def _redact_tokens(
     _method_name: str,
     event_dict: MutableMapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Redact sensitive strings from log messages."""
-    if isinstance(event := event_dict.get("event"), str):
-        for secret in _REDACTED_STRINGS:
-            if secret:
-                event = event.replace(secret, "<redacted>")
-        event_dict["event"] = event
+    """Redact sensitive strings from all log message fields."""
+    for key, value in event_dict.items():
+        if isinstance(value, str):
+            for secret in _REDACTED_STRINGS:
+                if secret:
+                    value = value.replace(secret, "<redacted>")
+            event_dict[key] = value
     return event_dict
 
 
