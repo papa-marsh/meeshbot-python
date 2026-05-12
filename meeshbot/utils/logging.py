@@ -75,5 +75,12 @@ def configure_logging() -> None:
 
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
+    # uvicorn.access has propagate=False and its own handler by default,
+    # so it bypasses the root logger. Replace its handler with ours so
+    # that access logs flow through the same redacting processor chain.
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.handlers = [handler]
+    access_logger.propagate = False
+
 
 log: BoundLogger = get_logger()
