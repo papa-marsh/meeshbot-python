@@ -45,7 +45,7 @@ def configure_logging() -> None:
             structlog.processors.add_log_level,
             _add_timezone_timestamp,
             _redact_tokens,
-            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+            structlog.dev.ConsoleRenderer(colors=True),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(min_level=logging.DEBUG),
         context_class=dict,
@@ -57,9 +57,13 @@ def configure_logging() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=[
+                structlog.processors.add_log_level,
+                _add_timezone_timestamp,
+                _redact_tokens,
+            ],
             processors=[
                 structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                _redact_tokens,
                 structlog.dev.ConsoleRenderer(colors=True),
             ],
         )
